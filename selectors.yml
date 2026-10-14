@@ -1,0 +1,5 @@
+# Named selectors - run with:  dbt build --selector z_quicksight_reporting
+# Rebuilds only the dashboard datasets (e.g. after a change to a tb_* model).
+selectors:
+  - name: z_quicksight_reporting
+    definition: "path:rmis_dbt_model/models/z-quicksight_reporting"

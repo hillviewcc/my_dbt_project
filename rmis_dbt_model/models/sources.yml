@@ -1,0 +1,310 @@
+# =============================================================================
+#  Raw sources loaded into Snowflake by the ingestion pipeline (S3 -> Snowflake).
+#
+#  raw_retailer : DELTA_* tables - data sent by retailers (transactions,
+#                 products, stores) plus daily FX rates. Each load appends the
+#                 new/changed records; DELTA_RECORD holds the original row as
+#                 JSON (VARIANT).
+#  raw_static   : SNAPSHOT_* tables - internally maintained reference data
+#                 (retailers, brands, categories, sales channels, security).
+#
+#  The landing models parse DELTA_RECORD / SNAPSHOT_RECORD into typed columns.
+# =============================================================================
+version: 2
+
+sources:
+  - name: raw_retailer
+    database: RAW_DB
+    schema: RETAILER
+
+    # loaded_at_field: DELTA_RAW_TIMESTAMP  # Not supported in dbt-fusion 2.0
+    description: |
+      Data ingested supplied by retailers.
+    tables:
+      - name: raw_transaction
+        identifier: DELTA_TRANSACTION
+        description: |
+          Contains the delta of the Retailer transactions.
+        columns:
+          - name: DELTA_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: DELTA_RAW_DIFF_KEY
+            description: The snowflake HASH of the DELTA_RECORD field
+          - name: DELTA_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and DELTA_RECORD fields
+          - name: DELTA_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+      
+      - name: raw_product
+        identifier: DELTA_PRODUCT_NEW
+        description: |
+          Contains the delta of the R Products.
+        columns:
+          - name: DELTA_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: DELTA_RAW_DIFF_KEY
+            description: The snowflake HASH of the DELTA_RECORD field
+          - name: DELTA_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and DELTA_RECORD fields
+          - name: DELTA_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_store
+        identifier: DELTA_STORE
+        description: |
+          Contains the delta of the Retailer Stores.
+        columns:
+          - name: DELTA_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: DELTA_RAW_DIFF_KEY
+            description: The snowflake HASH of the DELTA_RECORD field
+          - name: DELTA_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and DELTA_RECORD fields
+          - name: DELTA_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+      
+      - name: raw_fx_rates
+        identifier: DELTA_FX_RATES
+        description: |
+          Contains the delta of FX Rates.
+        columns:
+          - name: DELTA_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: DELTA_RAW_DIFF_KEY
+            description: The snowflake HASH of the DELTA_RECORD field
+          - name: DELTA_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and DELTA_RECORD fields
+          - name: DELTA_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+  - name: raw_static
+    database: RAW_DB
+    schema: STATIC
+
+    # loaded_at_field: SNAPSHOT_RAW_TIMESTAMP  # Not supported in dbt-fusion 2.0
+    description: |
+      Static Data produced internally.
+    tables:
+      - name: raw_static_sales_channel
+        identifier: SNAPSHOT_SALES_CHANNEL
+        description: |
+          Contains the snapshot of the static sales channel.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_market
+        identifier: SNAPSHOT_MARKET
+        description: |
+          Contains the snapshot of the static market.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+      
+      - name: raw_static_retailer
+        identifier: SNAPSHOT_RETAILER
+        description: |
+          Contains the snapshot of the static retailer.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_defaults
+        identifier: SNAPSHOT_DEFAULTS
+        description: |
+          Contains the snapshot of the static defaults.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_rls
+        identifier: SNAPSHOT_RLS
+        description: |
+          Contains the snapshot of the static rls.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_brand
+        identifier: SNAPSHOT_BRAND
+        description: |
+          Contains the snapshot of the static brand.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_brand_group
+        identifier: SNAPSHOT_BRAND_GROUP
+        description: |
+          Contains the snapshot of the static brand_group.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_product_category
+        identifier: SNAPSHOT_PRODUCT_CATEGORY
+        description: |
+          Contains the snapshot of the static product categories.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_product_sub_category
+        identifier: SNAPSHOT_PRODUCT_SUB_CATEGORY
+        description: |
+          Contains the snapshot of the static product subcategories.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI
+
+      - name: raw_static_department
+        identifier: SNAPSHOT_PRODUCT_DEPARTMENT
+        description: |
+          Contains the snapshot of the static departments.
+        columns:
+          - name: SNAPSHOT_RAW_TIMESTAMP
+            description: The timestamp of when the data was loaded into the database
+          - name: SNAPSHOT_RAW_DIFF_KEY
+            description: The snowflake HASH of the SNAPSHOT_RECORD field
+          - name: SNAPSHOT_RAW_KEY
+            description: The snowflake HASH of the SOURCE_S3_URI and SNAPSHOT_RECORD fields
+          - name: SNAPSHOT_RECORD
+            description: The record data as a variant
+          - name: SOURCE_ROW_NUMBER
+            description: The row number of the data as found within the SOURCE_S3_URI
+          - name: SOURCE_S3_URI
+            description: The name of the file in AWS S3 where the data was loaded from
+          - name: SOURCE_S3_URI_KEY
+            description: The snowflake HASH of SOURCE_S3_URI

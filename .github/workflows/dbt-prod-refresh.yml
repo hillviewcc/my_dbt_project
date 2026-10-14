@@ -1,0 +1,53 @@
+name: dbt Prod Refresh
+
+# Fires ONLY when the dev-refresh-generated promotion PR (head branch
+# dbt-monthly-refresh-promotion) is merged into main - not on any other
+# merge to main. The gate is a human reviewing the actual dev data that
+# dbt-monthly-refresh.yml just refreshed, not a code review, so prod must
+# never run except as a direct continuation of that specific dev cycle.
+on:
+  pull_request:
+    types: [closed]
+    branches: [ main ]
+
+concurrency:
+  group: dbt-prod-refresh
+  cancel-in-progress: false
+
+jobs:
+  prod-refresh:
+    name: Run (prod)
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dbt-monthly-refresh-promotion'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install dbt Fusion
+        run: |
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify dbtf install
+        run: dbt --version
+
+      - name: Write Snowflake private key (prod)
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "${{ secrets.PRD_SNOWFLAKE_PRIVATE_KEY }}" | tr -d '\r' > "$RUNNER_TEMP/keys/prod_key.p8"
+          chmod 600 "$RUNNER_TEMP/keys/prod_key.p8"
+
+      - name: dbt run (full project, prod)
+        env:
+          PRD_SNOWFLAKE_ACCOUNT: ${{ secrets.PRD_SNOWFLAKE_ACCOUNT }}
+          PRD_SNOWFLAKE_USER: ${{ secrets.PRD_SNOWFLAKE_USER }}
+          PRD_SNOWFLAKE_ROLE: ${{ secrets.PRD_SNOWFLAKE_ROLE }}
+          PRD_SNOWFLAKE_DATABASE: ${{ secrets.PRD_SNOWFLAKE_DATABASE }}
+          PRD_SNOWFLAKE_SCHEMA: ${{ secrets.PRD_SNOWFLAKE_SCHEMA }}
+          PRD_SNOWFLAKE_PRIVATE_KEY_PATH: ${{ runner.temp }}/keys/prod_key.p8
+          RMIS_SNOWFLAKE_WAREHOUSE: ${{ vars.RMIS_SNOWFLAKE_WAREHOUSE }}
+          DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
+        run: dbt run --target prod

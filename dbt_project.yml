@@ -1,0 +1,106 @@
+# =============================================================================
+#  dbt project: RMIS - Retail Market Intelligence System
+#
+#  Builds a Snowflake star schema of retail sales from many retailers, then
+#  publishes BI-ready datasets for market-share, brand-share and retailer-share
+#  dashboards.
+#
+#  Layers (folders under rmis_dbt_model/models):
+#    landing/                 views  - parse raw JSON feeds, de-duplicate, clean
+#    staging/                 tables - typed, keyed, incremental; gap-filling
+#    u-reporting/             tables - dimensions (dim_*) and facts (fct_*)
+#    z-quicksight_reporting/  tables - pre-aggregated datasets for dashboards
+#    date/                    table  - generated calendar dimension
+# =============================================================================
+name: 'rmis_dbt_model'
+version: '1.0.0'
+
+# -----------------------------------------------------------------------------
+# Hooks that run once at the start of every dbt invocation:
+# log which target / warehouse is in use, then switch to that warehouse.
+# -----------------------------------------------------------------------------
+on-run-start:
+  - "{{ log('target.name=' ~ target.name ~ ' | target.warehouse=' ~ target.warehouse, info=True) }}"
+  - "{{ log('RMIS_SNOWFLAKE_WAREHOUSE=' ~ env_var('RMIS_SNOWFLAKE_WAREHOUSE','<unset>'), info=True) }}"
+  - "USE WAREHOUSE {{ target.warehouse }};"
+
+# -----------------------------------------------------------------------------
+# Hooks that run once at the end of every invocation: (re)grant read access
+# on the reporting objects to the BI / analyst role. FUTURE grants mean tables
+# created by later runs are readable straight away.
+# -----------------------------------------------------------------------------
+on-run-end:
+  # prod reporting database
+  - "GRANT USAGE ON ALL SCHEMAS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
+  - "GRANT SELECT ON ALL TABLES IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
+  - "GRANT SELECT ON ALL VIEWS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
+  - "GRANT USAGE ON FUTURE SCHEMAS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
+  - "GRANT SELECT ON FUTURE TABLES IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
+  - "GRANT SELECT ON FUTURE VIEWS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
+  - "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA prod_rmis_reporting_db.prod_reporting TO ROLE reporting_reader"
+  - "GRANT SELECT, INSERT, UPDATE, DELETE ON FUTURE TABLES IN SCHEMA prod_rmis_reporting_db.prod_reporting TO ROLE reporting_reader"
+  # dev database (read-only)
+  - "GRANT USAGE ON DATABASE dev_rmis_db TO ROLE reporting_reader"
+  - "GRANT USAGE ON ALL SCHEMAS IN DATABASE dev_rmis_db TO ROLE reporting_reader"
+  - "GRANT SELECT ON ALL TABLES IN SCHEMA dev_rmis_db.dev_reporting TO ROLE reporting_reader"
+  - "GRANT SELECT ON ALL VIEWS IN SCHEMA dev_rmis_db.dev_reporting TO ROLE reporting_reader"
+  - "GRANT USAGE ON FUTURE SCHEMAS IN DATABASE dev_rmis_db TO ROLE reporting_reader"
+  - "GRANT SELECT ON FUTURE TABLES IN DATABASE dev_rmis_db TO ROLE reporting_reader"
+  - "GRANT SELECT ON FUTURE VIEWS IN DATABASE dev_rmis_db TO ROLE reporting_reader"
+
+# Connection profile to use (defined in .dbt/profiles.yml).
+profile: 'rmis_dbt_model'
+
+# Where dbt finds each type of file. Everything lives under rmis_dbt_model/.
+model-paths: ["rmis_dbt_model/models"]
+analysis-paths: ["rmis_dbt_model/analyses"]
+test-paths: ["rmis_dbt_model/tests"]
+seed-paths: ["rmis_dbt_model/seeds"]
+macro-paths: ["rmis_dbt_model/macros"]
+snapshot-paths: ["rmis_dbt_model/snapshots"]
+
+clean-targets:         # directories removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+# Database names, overridable from the command line with --vars.
+vars:
+  dev_db: dev_rmis_db                       # every layer builds here in dev
+  prod_db: prod_rmis_db                     # landing + staging in prod
+  prod_reporting_db: prod_rmis_reporting_db # reporting layers in prod
+
+# -----------------------------------------------------------------------------
+# Folder-level model configuration ('+' = applies to every model in the folder;
+# a model can still override it with its own config() block).
+#
+# Environment switching: in prod, landing/staging and the reporting layers are
+# split across two databases; in dev everything goes to one dev database.
+# -----------------------------------------------------------------------------
+models:
+  rmis_dbt_model:
+    +static_analysis: strict    # dbt Fusion: full SQL compile-time checking
+
+    landing:
+      +database: "{{ var('prod_db', 'prod_rmis_db') if target.name == 'prod' else var('dev_db', 'dev_rmis_db') }}"
+      +schema: "LANDING"
+      +materialized: view       # always reflects the latest raw data, no storage cost
+
+    staging:
+      +database: "{{ var('prod_db', 'prod_rmis_db') if target.name == 'prod' else var('dev_db', 'dev_rmis_db') }}"
+      +schema: "STAGING"
+      +materialized: table      # most staging models override this to incremental
+
+    u-reporting:
+      +database: "{{ var('prod_reporting_db', 'prod_rmis_reporting_db') if target.name == 'prod' else var('dev_db', 'dev_rmis_db') }}"
+      +schema: "REPORTING"
+      +materialized: table
+
+    z-quicksight_reporting:
+      +database: "{{ var('prod_reporting_db', 'prod_rmis_reporting_db') if target.name == 'prod' else var('dev_db', 'dev_rmis_db') }}"
+      +schema: "REPORTING"
+      +materialized: table      # rebuilt in full each run so dashboards read a consistent snapshot
+
+    date:
+      +database: "{{ var('prod_reporting_db', 'prod_rmis_reporting_db') if target.name == 'prod' else var('dev_db', 'dev_rmis_db') }}"
+      +schema: "DATE"
+      +materialized: table

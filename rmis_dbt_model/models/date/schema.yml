@@ -1,0 +1,232 @@
+# =============================================================================
+#  Date dimension: documentation for every calendar attribute in dim_date.
+# =============================================================================
+models:
+  - name: dim_date
+    description: The dim_date model is a date dimension table that generates a
+      sequence of dates from 2000-01-01 onwards for 20000 days. It includes
+      various attributes of the date such as day name, day of the month, day of
+      the week, month number, month name, quarter number, quarter name, year,
+      week number, fiscal year, fiscal period, fiscal week, season, holiday
+      name, and indicators for weekday, leap year. It also includes prior year,
+      month, and day dates. The primary key of the table is date_key which is
+      the date in YYYYMMDD format.
+    columns:
+      - name: date_id
+        description: A unique identifier for each date, represented as a decimal number.
+          It is derived from the calendar date in the format YYYYMMDD.
+        data_type: number
+        tests:
+          - not_null
+          - unique
+      - name: date_key
+        description: The actual date value for each record in the format YYYY-MM-DD. It
+          serves as a key to link with other tables.
+        data_type: date
+        tests:
+          - not_null
+          - unique
+      - name: calendar_date_char
+        description: This column represents the calendar date in the format
+          'YYYY-MM-DD'. It is a string data type.
+        data_type: varchar
+      - name: day_name_short
+        description: This column represents the short form of the day name. For example,
+          'Mon' for Monday. It is a string data type.
+        data_type: varchar
+      - name: day_name_long
+        description: This column represents the full name of the day. For example,
+          'Monday'. It is a string data type.
+        data_type: varchar
+      - name: day_of_month
+        description: This column represents the day of the month with a suffix (st, nd,
+          rd, th) based on the day number. For example, 1st, 2nd, 3rd, 4th, etc.
+        data_type: varchar
+      - name: day_of_week_number
+        description: This column represents the day of the week as a number where 1 is
+          Monday and 7 is Sunday.
+        data_type: number
+      - name: day_of_month_number
+        description: This column represents the day of the month as a number. For
+          example, for the date '2022-03-01', the value would be 1.
+        data_type: number
+      - name: weekday_ind
+        description: This column indicates whether the day is a weekday or not. It is a
+          binary indicator where 0 represents a weekend (Saturday or Sunday) and
+          1 represents a weekday (Monday to Friday).
+        data_type: number
+      - name: year_month_number
+        description: This column represents the year and month of the date in the format
+          YYYYMM. It is a decimal number where the first four digits represent
+          the year and the last two digits represent the month.
+        data_type: number
+      - name: month_year_number
+        description: This column represents the month and year of the date in the format
+          MMYYYY. It is a decimal number where the first two digits represent
+          the month and the last four digits represent the year.
+        data_type: number
+      - name: month_year_desc
+        description: This column represents the description of the month and year in the
+          format 'Mon-YYYY'. For example, 'Jan-2022' for January 2022.
+        data_type: varchar
+      - name: month_number
+        description: This column represents the numerical value of the month. It ranges
+          from 1 (January) to 12 (December).
+        data_type: number
+      - name: calendar_month_name_long
+        description: This column represents the full name of the month. For example,
+          'January' for the first month of the year.
+        data_type: varchar
+      - name: calendar_month_name_short
+        description: This column represents the abbreviated name of the month for the
+          given date. It is derived from the 'calendar_date' column and is
+          represented in a three-letter format (e.g., 'Jan' for January, 'Feb'
+          for February, etc.).
+        data_type: varchar
+      - name: first_day_of_month
+        description: This column represents the first day of the month for the given
+          date. It is derived from the 'calendar_date' column and is represented
+          in a date format (YYYY-MM-DD). For example, for any date in January
+          2020, this column would show '2020-01-01'.
+        data_type: date
+      - name: last_day_of_month
+        description: This column represents the last day of the month for the given
+          date. It is derived from the 'calendar_date' column and is represented
+          in a date format (YYYY-MM-DD). For example, for any date in January
+          2020, this column would show '2020-01-31'.
+        data_type: date
+      - name: month_of_calendar_quarter
+        description: This column represents the month number within a calendar quarter.
+          For example, if the month is March, June, September, or December, the
+          value will be 3, as these are the last months of their respective
+          quarters.
+        data_type: number
+      - name: calendar_year_quarter_number
+        description: This column represents the quarter number within a calendar year.
+          The value ranges from 1 to 4, with 1 representing the first quarter
+          (January to March) and 4 representing the last quarter (October to
+          December).
+        data_type: number
+      - name: calendar_year_quarter_desc
+        description: This column provides a description of the quarter within a calendar
+          year. The format is 'CY' followed by the year, a space, 'Q', and the
+          quarter number. For example, 'CY2021 Q1' represents the first quarter
+          of 2021.
+        data_type: varchar
+      - name: calendar_quarter_number
+        description: This column represents the quarter number of the calendar year. It
+          ranges from 1 to 4, where 1 represents the first quarter (January to
+          March), 2 represents the second quarter (April to June), 3 represents
+          the third quarter (July to September), and 4 represents the fourth
+          quarter (October to December).
+        data_type: number
+      - name: calendar_quarter_desc
+        description: This column provides a short description of the calendar quarter.
+          It is represented in the format 'Q' followed by the quarter number.
+          For example, 'Q1' for the first quarter, 'Q2' for the second quarter,
+          and so on.
+        data_type: varchar
+      - name: calendar_quarter_name
+        description: This column provides the name of the calendar quarter. It is
+          represented as 'First' for the first quarter, 'Second' for the second
+          quarter, 'Third' for the third quarter, and 'Fourth' for the fourth
+          quarter.
+        data_type: varchar
+      - name: first_day_of_calendar_quarter
+        description: This column represents the first day of the calendar quarter for
+          the given date. It is calculated by truncating the date to the quarter
+          and is of DATE data type.
+        data_type: date
+      - name: last_day_of_calendar_quarter
+        description: This column represents the last day of the calendar quarter for the
+          given date. It is calculated by adding two months to the first day of
+          the quarter, then getting the last day of that month. It is of DATE
+          data type.
+        data_type: date
+      - name: calendar_year_number
+        description: This column represents the calendar year of the given date. It is
+          extracted from the date and is of NUMBER data type.
+        data_type: number
+      - name: calendar_year_desc
+        description: This column represents the calendar year in the format 'CY'
+          followed by the year number. For example, for the year 2022, the value
+          would be 'CY2022'.
+        data_type: varchar
+      - name: calendar_year_day_number
+        description: This column represents the day number of the year. It ranges from 1
+          to 365 (or 366 in a leap year). For example, January 1st would be
+          represented as 1, and December 31st would be represented as 365 or 366
+          depending on whether it's a leap year or not.
+        data_type: number
+      - name: week_commencing
+        description: This column represents the date on which the week starts. It is
+          calculated by truncating the date to the start of the week. For
+          example, if the date is any day from Monday to Sunday, the value of
+          this column would be the date of the Monday of that week.
+        data_type: date
+      - name: week_ending
+        description: This column represents the last day of the week for the given date.
+          It is calculated by adding 6 days to the first day of the week.
+        data_type: date
+      - name: calendar_week_number
+        description: This column represents the week number of the year for the given
+          date. It is calculated using the WEEKOFYEAR function.
+        data_type: number
+      - name: calendar_week_desc
+        description: This column provides a description of the week in the format
+          'YYYY-wkWW', where YYYY is the year and WW is the week number of the
+          year.
+        data_type: varchar
+      - name: fiscal_year_desc
+        description: This column represents the fiscal year in the format 'FY' followed
+          by the year. For example, 'FY2021-22' represents the fiscal year
+          starting in 2021 and ending in 2022.
+        data_type: varchar
+      - name: fiscal_period_desc
+        description: This column represents the fiscal period in the format 'p' followed
+          by the month number. For example, 'p12' represents the 12th fiscal
+          period.
+        data_type: varchar
+      - name: fiscal_period_number
+        description: This column represents the fiscal period as a number. For example,
+          '12' represents the 12th fiscal period.
+        data_type: number
+      - name: fiscal_week_desc
+        description: This column represents the description of the fiscal week. It is a
+          combination of the calendar year and the week of the year. The format
+          is 'YYYY-wkWW', where YYYY is the 4-digit year and WW is the 2-digit
+          week number.
+        data_type: varchar
+      - name: fiscal_week_number
+        description: This column represents the number of the fiscal week. It is
+          calculated as the week of the year for the given date.
+        data_type: number
+      - name: season
+        description: This column represents the season of the year based on the calendar
+          date. The year is divided into 'Spring', 'Summer', 'Autumn', and
+          'Winter'.
+        data_type: varchar
+      - name: holiday_name
+        description: This column contains the name of the holiday if the date is a
+          recognized holiday. If the date is not a holiday, the value will be
+          NULL.
+        data_type: varchar
+      - name: leap_year_ind
+        description: This column contains an indicator of whether the year is a leap
+          year or not. The value will be 1 if it is a leap year and 0 if it is
+          not.
+        data_type: number
+      - name: prior_year_date
+        description: This column contains the date exactly one year prior to the current
+          date in the row.
+        data_type: date
+      - name: prior_month_date
+        description: This column represents the date exactly one month prior to the
+          current date in the row. It is calculated by subtracting one month
+          from the current date. The data type of this column is date.
+        data_type: date
+      - name: prior_day_date
+        description: This column represents the date exactly one day prior to the
+          current date in the row. It is calculated by subtracting one day from
+          the current date. The data type of this column is date.
+        data_type: date

@@ -1,0 +1,11 @@
+# dbt artifacts
+target/
+dbt_packages/
+logs/
+*.log
+
+# local / user-specific
+.user.yml
+.dbt/.user.yml
+.dbt/dbt_cloud.bak
+.claude/settings.local.json

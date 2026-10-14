@@ -1,0 +1,38 @@
+# =============================================================================
+#  dbt connection profile for RMIS (Snowflake, key-pair authentication).
+#
+#  No secrets are stored here: every value is read from an environment
+#  variable (DEV_* for the dev target, PRD_* for prod). The second argument of
+#  env_var() is only a non-sensitive placeholder default.
+#  Point dbt at this file with:  DBT_PROFILES_DIR=<repo>/.dbt
+# =============================================================================
+rmis_dbt_model:
+  target: dev
+  outputs:
+
+    # local development and the monthly CI dev refresh
+    dev:
+      type: snowflake
+      account:   "{{ env_var('DEV_SNOWFLAKE_ACCOUNT',  'your_account.eu-west-1') }}"
+      user:      "{{ env_var('DEV_SNOWFLAKE_USER',     'YOUR_SNOWFLAKE_USER') }}"
+      role:      "{{ env_var('DEV_SNOWFLAKE_ROLE',     'TRANSFORMER') }}"
+      warehouse: "{{ env_var('RMIS_SNOWFLAKE_WAREHOUSE','TRANSFORM_WH') }}"
+      database:  "{{ env_var('DEV_SNOWFLAKE_DATABASE', 'dev_rmis_db') }}"
+      schema:    "{{ env_var('DEV_SNOWFLAKE_SCHEMA',   'dev') }}"
+      private_key_path: "{{ env_var('DEV_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      # Optional if your key is encrypted:
+      # private_key_passphrase: "{{ env_var('DEV_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+      threads: 8
+
+    # production - only run by CI after the promotion PR is approved
+    prod:
+      type: snowflake
+      account:   "{{ env_var('PRD_SNOWFLAKE_ACCOUNT',  'your_account.eu-west-1') }}"
+      user:      "{{ env_var('PRD_SNOWFLAKE_USER',     'YOUR_SNOWFLAKE_USER') }}"
+      role:      "{{ env_var('PRD_SNOWFLAKE_ROLE',     'TRANSFORMER') }}"
+      warehouse: "{{ env_var('RMIS_SNOWFLAKE_WAREHOUSE','TRANSFORM_WH') }}"
+      database:  "{{ env_var('PRD_SNOWFLAKE_DATABASE','prod_rmis_db') }}"
+      schema:    "{{ env_var('PRD_SNOWFLAKE_SCHEMA',   'prod') }}"
+      private_key_path: "{{ env_var('PRD_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      # private_key_passphrase: "{{ env_var('PRD_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+      threads: 8

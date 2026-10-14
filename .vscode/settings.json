@@ -1,0 +1,7 @@
+
+{
+  "dbt.dbtIntegration": "fusion",
+  "dbt.profilesDir": "C:/work_folder/my_dbt_project/.dbt",
+  "dbt.profileName": "rmis_dbt_model"
+}
+

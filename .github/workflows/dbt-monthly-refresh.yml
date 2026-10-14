@@ -1,0 +1,116 @@
+name: dbt Monthly Dev Refresh + Promote
+
+on:
+  schedule:
+    # 06:13 UTC on the 15th of every month (off the top of the hour,
+    # since GitHub Actions scheduled workflows are more likely to be
+    # delayed at :00 due to platform-wide congestion at that mark)
+    - cron: '13 6 15 * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: dbt-monthly-dev-refresh
+  cancel-in-progress: false
+
+jobs:
+  dev-refresh:
+    name: Test (landing) + Run (dev)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dbt Fusion
+        run: |
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify dbtf install
+        # If this fails, check the install step's log output above for the
+        # actual install directory and update the PATH line above to match.
+        run: dbt --version
+
+      - name: Write Snowflake private key (dev)
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "${{ secrets.DEV_SNOWFLAKE_PRIVATE_KEY }}" | tr -d '\r' > "$RUNNER_TEMP/keys/dev_key.p8"
+          chmod 600 "$RUNNER_TEMP/keys/dev_key.p8"
+
+      - name: dbt test (landing models only)
+        env:
+          DEV_SNOWFLAKE_ACCOUNT: ${{ secrets.DEV_SNOWFLAKE_ACCOUNT }}
+          DEV_SNOWFLAKE_USER: ${{ secrets.DEV_SNOWFLAKE_USER }}
+          DEV_SNOWFLAKE_ROLE: ${{ secrets.DEV_SNOWFLAKE_ROLE }}
+          DEV_SNOWFLAKE_DATABASE: ${{ secrets.DEV_SNOWFLAKE_DATABASE }}
+          DEV_SNOWFLAKE_SCHEMA: ${{ secrets.DEV_SNOWFLAKE_SCHEMA }}
+          DEV_SNOWFLAKE_PRIVATE_KEY_PATH: ${{ runner.temp }}/keys/dev_key.p8
+          RMIS_SNOWFLAKE_WAREHOUSE: ${{ vars.RMIS_SNOWFLAKE_WAREHOUSE }}
+          DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
+        run: dbt test --select path:rmis_dbt_model/models/landing --target dev
+
+      - name: dbt run (full project, dev)
+        env:
+          DEV_SNOWFLAKE_ACCOUNT: ${{ secrets.DEV_SNOWFLAKE_ACCOUNT }}
+          DEV_SNOWFLAKE_USER: ${{ secrets.DEV_SNOWFLAKE_USER }}
+          DEV_SNOWFLAKE_ROLE: ${{ secrets.DEV_SNOWFLAKE_ROLE }}
+          DEV_SNOWFLAKE_DATABASE: ${{ secrets.DEV_SNOWFLAKE_DATABASE }}
+          DEV_SNOWFLAKE_SCHEMA: ${{ secrets.DEV_SNOWFLAKE_SCHEMA }}
+          DEV_SNOWFLAKE_PRIVATE_KEY_PATH: ${{ runner.temp }}/keys/dev_key.p8
+          RMIS_SNOWFLAKE_WAREHOUSE: ${{ vars.RMIS_SNOWFLAKE_WAREHOUSE }}
+          DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
+        run: dbt run --target dev
+
+  open_promotion_pr:
+    name: Open PR to promote dev refresh to prod
+    needs: dev-refresh
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create/update promotion branch with refresh marker
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin main
+          git checkout -B dbt-monthly-refresh-promotion origin/main
+
+          mkdir -p ci
+          echo "Dev refresh completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > ci/last_dev_refresh.md
+          echo "Triggered by: ${{ github.workflow }} run ${{ github.run_id }}" >> ci/last_dev_refresh.md
+
+          git add ci/last_dev_refresh.md
+          git commit -m "chore: dbt monthly dev refresh $(date -u +%Y-%m-%d)"
+          git push --force origin dbt-monthly-refresh-promotion
+
+      - name: Create or reuse promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+
+          PR_URL=$(gh pr list --repo "$REPO" \
+            --base main --head dbt-monthly-refresh-promotion --state open \
+            --json url --jq '.[0].url' || true)
+
+          if [ -z "$PR_URL" ]; then
+            PR_URL=$(gh pr create --repo "$REPO" \
+              --base main \
+              --head dbt-monthly-refresh-promotion \
+              --title "Promote monthly dbt dev refresh to prod - $(date -u +%Y-%m-%d)" \
+              --body "Auto-created after successful dev dbtf test + run. Approve and merge to run dbtf run --target prod.")
+            echo "Created PR: $PR_URL"
+          else
+            echo "PR already exists: $PR_URL"
+          fi
+
+          # Request review from Approvers team
+          gh pr edit --repo "$REPO" "$PR_URL" --add-reviewer "example-org/approvers"
+          echo "Review requested from team: example-org/approvers"
+          echo "PR ready for approval + merge: $PR_URL"
