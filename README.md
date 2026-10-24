@@ -1,8 +1,12 @@
 # RMIS: Retail Market Intelligence dbt Project
 
-A production dbt project, built with **dbt Fusion** on **Snowflake**, that turns raw sales feeds from dozens of retailers into a star schema and a set of BI-ready datasets for market-share, brand-share and retailer-share dashboards across the UK, DACH and France.
+An anonymised portfolio copy of an actual live production dbt project built with **dbt Fusion** on **Snowflake**. It demonstrates how raw retail sales feeds are transformed into a star schema and BI datasets for UK, DACH and France reporting.
 
-> **Note:** Retailer, brand and company names in this repository have been replaced with fictitious ones. Infrastructure identifiers (accounts, databases, roles) are placeholders.
+**Shared with permission.** This copy has been anonymised for use in job applications: retailer, brand and company names are fictitious, and infrastructure identifiers are placeholders. It contains no production source data or connection credentials.
+
+**This repository cannot be run as supplied.** Execution requires a Snowflake account, authorised credentials, and the upstream raw/reference tables from the original environment, which are not included. I do not currently have access to that Snowflake environment. This repository is provided for code and architecture review; it is not a standalone runnable demo.
+
+The original implementation operated in production. Subsequent portfolio fixes in this copy have received offline structural checks only and **have not been compiled or executed against Snowflake**. The included workflow definitions illustrate the deployment approach; this repository does not provide evidence of successful production runs. Snowflake workflows are opt-in and have no active schedule in this copy.
 
 ---
 
@@ -36,7 +40,7 @@ A production dbt project, built with **dbt Fusion** on **Snowflake**, that turns
 | **Data quality & observability** | `audit_transaction_pipeline` checks layer-to-layer row counts, data freshness and how much of the data is back-filled. `combined_data` + `water_fall_data_full` reconcile raw value to dashboard value. `daily_observability` shows which retailers have not delivered. |
 | **Custom tests** | `tests/generic/unique_case_insensitive.sql` catches duplicates such as `'Brandex'` vs `'BRANDEX'` that the built-in `unique` test misses. |
 | **History** | `snapshots/`: a type-2 SCD snapshot of the product master. |
-| **CI/CD** | GitHub Actions: a monthly dev refresh opens a promotion PR, and prod runs only after that PR is approved. See [CICD.md](CICD.md). |
+| **CI/CD** | GitHub Actions: an opt-in manual dev build opens a promotion PR; merging that PR triggers the prod build when configured. Required approval must be enforced through branch protection. See [CICD.md](CICD.md). |
 
 ## Project layout
 
@@ -58,7 +62,13 @@ rmis_dbt_model/
 
 Every model starts with a header block that gives its layer, purpose, grain, dependencies and any notable design decisions.
 
-## Running it
+## Reviewing the project
+
+Start with `lnd_transaction.sql` (normalisation and deduplication), `stg_transaction.sql` (actual/estimated replacement), `fct_transaction.sql` (incremental dimensional enrichment), and `audit_transaction_pipeline.sql` (scope-aware reconciliation).
+
+The portfolio changes separate actual-source ingestion watermarks from synthetic estimates, correct retailer change detection, and make reporting grants read-only, target-scoped and opt-in. Focused integration assertions cover estimate replacement, retailer mapping and reconciliation; they remain unexecuted without Snowflake. See [CICD.md](CICD.md) for workflow prerequisites and limitations.
+
+## Execution reference — requires the original-equivalent Snowflake setup
 
 Requires Python ≥ 3.11 and dbt Fusion (`curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update`).
 
@@ -83,3 +93,11 @@ dbt build --selector z_quicksight_reporting   # dashboard datasets only
 dbt snapshot                        # product history snapshot
 dbt build --target prod             # production
 ```
+
+### Access grants
+
+Automatic grants are disabled by default. An administrator must provision the `reporting_reader` role first. In a configured environment, `--vars '{grant_reporting_access: true}'` enables SELECT-only grants on the current target's reporting schema. Dev runs do not grant access to production. Database/schema names must match the placeholder configuration before use.
+
+### Runtime and dependencies
+
+The original CI documentation records `dbt-fusion 2.0.0-preview.196`. The example installer follows the current Fusion release rather than pinning it; compatibility must be checked before enabling execution. Generated `dbt_internal_packages/` files are excluded: install the dbt engine instead of committing its bundled adapter code.

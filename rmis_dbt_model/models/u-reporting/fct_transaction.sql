@@ -49,7 +49,11 @@
 -- high-water mark: latest load time already in the fact table
 with max_fct_time as (
     {% if is_incremental() %}
-    select max(loaded_datetime) as max_time from {{ this }}
+    select coalesce(max(f.loaded_datetime), to_timestamp('1900-01-01')) as max_time
+    from {{ this }} f
+    inner join {{ ref('stg_transaction') }} s
+      on s.transaction_concat_key = f.transaction_concat_key
+    where s.data_source_flag = 'ACTUAL'
     {% else %}
     select to_timestamp('1900-01-01') as max_time
     {% endif %}
@@ -301,7 +305,7 @@ where row_no = 1
   and (
         ft.loaded_datetime > (select max_time from max_fct_time)
         or ft.transaction_ean_upc_key in (select ean_upc_key from changed_products)
-        or ft.retailer_id_key in (select retailer_id from changed_retailers)         
+        or ft.retailer_id in (select retailer_id from changed_retailers)         
         or ft.sales_mapping_key in (select sales_mapping_key from changed_channels)
         or ft.transaction_date in (select fx_date from changed_fx_rates)
                   

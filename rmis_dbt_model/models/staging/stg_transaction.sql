@@ -24,10 +24,10 @@
     on_schema_change='fail',
     unique_key='transaction_concat_key', 
     incremental_strategy='merge',
-    pre_hook = "DELETE FROM {{ this }} WHERE data_source_flag = 'ESTIMATED' AND (retailer, retailer_group_id, 
+    pre_hook = "{% if is_incremental() %}DELETE FROM {{ this }} WHERE data_source_flag = 'ESTIMATED' AND (retailer, retailer_group_id, 
     date_trunc('month', transaction_date)) IN (SELECT retailer, retailer_group_id, 
     date_trunc('month', transaction_date) FROM {{ ref('lnd_transaction') }}
-    WHERE {% if is_incremental() %}loaded_timestamp > (SELECT max(loaded_datetime) FROM {{ this }}){% else %}1=1{% endif %})"
+    WHERE {% if is_incremental() %}loaded_timestamp > (SELECT coalesce(max(loaded_datetime), to_timestamp('1900-01-01')) FROM {{ this }} WHERE data_source_flag = 'ACTUAL'){% else %}1=1{% endif %}){% endif %}"
   )
 }}
 
@@ -47,6 +47,8 @@
   as ACTUAL rows for that retailer/month land, so they are never counted twice.
 */
 
+-- 1. Use only ACTUAL source timestamps as the ingestion watermark.
+-- ESTIMATED rows have synthetic timestamps and must never advance it.
 -- 1. Get current data (new records only in incremental mode)
 with current_data as (
   select
@@ -71,7 +73,7 @@ with current_data as (
     lt.retailer
   from {{ ref('lnd_transaction') }} lt
   {% if is_incremental() %}
-  where lt.loaded_timestamp > (select max(loaded_datetime) from {{ this }})
+  where lt.loaded_timestamp > (select coalesce(max(loaded_datetime), to_timestamp('1900-01-01')) from {{ this }} where data_source_flag = 'ACTUAL')
   {% endif %}
 ),
 

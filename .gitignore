@@ -9,3 +9,11 @@ logs/
 .dbt/.user.yml
 .dbt/dbt_cloud.bak
 .claude/settings.local.json
+
+# Generated engine dependencies and local secrets
+dbt_internal_packages/
+.env
+.env.*
+!.env.example
+*.p8
+*.pem

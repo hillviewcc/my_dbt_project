@@ -24,29 +24,12 @@ on-run-start:
   - "{{ log('RMIS_SNOWFLAKE_WAREHOUSE=' ~ env_var('RMIS_SNOWFLAKE_WAREHOUSE','<unset>'), info=True) }}"
   - "USE WAREHOUSE {{ target.warehouse }};"
 
-# -----------------------------------------------------------------------------
-# Hooks that run once at the end of every invocation: (re)grant read access
-# on the reporting objects to the BI / analyst role. FUTURE grants mean tables
-# created by later runs are readable straight away.
-# -----------------------------------------------------------------------------
+# Access provisioning belongs to infrastructure administration, not model runs.
+# The optional reporting_reader grants below are read-only and target-scoped.
+# Enable explicitly with --vars '{grant_reporting_access: true}' after the role
+# has been provisioned and the executing role has the required grant privileges.
 on-run-end:
-  # prod reporting database
-  - "GRANT USAGE ON ALL SCHEMAS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
-  - "GRANT SELECT ON ALL TABLES IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
-  - "GRANT SELECT ON ALL VIEWS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
-  - "GRANT USAGE ON FUTURE SCHEMAS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
-  - "GRANT SELECT ON FUTURE TABLES IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
-  - "GRANT SELECT ON FUTURE VIEWS IN DATABASE prod_rmis_reporting_db TO ROLE reporting_reader"
-  - "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA prod_rmis_reporting_db.prod_reporting TO ROLE reporting_reader"
-  - "GRANT SELECT, INSERT, UPDATE, DELETE ON FUTURE TABLES IN SCHEMA prod_rmis_reporting_db.prod_reporting TO ROLE reporting_reader"
-  # dev database (read-only)
-  - "GRANT USAGE ON DATABASE dev_rmis_db TO ROLE reporting_reader"
-  - "GRANT USAGE ON ALL SCHEMAS IN DATABASE dev_rmis_db TO ROLE reporting_reader"
-  - "GRANT SELECT ON ALL TABLES IN SCHEMA dev_rmis_db.dev_reporting TO ROLE reporting_reader"
-  - "GRANT SELECT ON ALL VIEWS IN SCHEMA dev_rmis_db.dev_reporting TO ROLE reporting_reader"
-  - "GRANT USAGE ON FUTURE SCHEMAS IN DATABASE dev_rmis_db TO ROLE reporting_reader"
-  - "GRANT SELECT ON FUTURE TABLES IN DATABASE dev_rmis_db TO ROLE reporting_reader"
-  - "GRANT SELECT ON FUTURE VIEWS IN DATABASE dev_rmis_db TO ROLE reporting_reader"
+  - "{{ grant_reporting_read_access() }}"
 
 # Connection profile to use (defined in .dbt/profiles.yml).
 profile: 'rmis_dbt_model'
@@ -65,6 +48,7 @@ clean-targets:         # directories removed by `dbt clean`
 
 # Database names, overridable from the command line with --vars.
 vars:
+  grant_reporting_access: false
   dev_db: dev_rmis_db                       # every layer builds here in dev
   prod_db: prod_rmis_db                     # landing + staging in prod
   prod_reporting_db: prod_rmis_reporting_db # reporting layers in prod

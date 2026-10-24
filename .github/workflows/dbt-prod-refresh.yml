@@ -17,7 +17,7 @@ concurrency:
 jobs:
   prod-refresh:
     name: Run (prod)
-    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dbt-monthly-refresh-promotion'
+    if: vars.ENABLE_SNOWFLAKE_WORKFLOWS == 'true' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dbt-monthly-refresh-promotion'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -40,7 +40,7 @@ jobs:
           printf '%s' "${{ secrets.PRD_SNOWFLAKE_PRIVATE_KEY }}" | tr -d '\r' > "$RUNNER_TEMP/keys/prod_key.p8"
           chmod 600 "$RUNNER_TEMP/keys/prod_key.p8"
 
-      - name: dbt run (full project, prod)
+      - name: dbt build (models + tests, prod)
         env:
           PRD_SNOWFLAKE_ACCOUNT: ${{ secrets.PRD_SNOWFLAKE_ACCOUNT }}
           PRD_SNOWFLAKE_USER: ${{ secrets.PRD_SNOWFLAKE_USER }}
@@ -50,4 +50,4 @@ jobs:
           PRD_SNOWFLAKE_PRIVATE_KEY_PATH: ${{ runner.temp }}/keys/prod_key.p8
           RMIS_SNOWFLAKE_WAREHOUSE: ${{ vars.RMIS_SNOWFLAKE_WAREHOUSE }}
           DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
-        run: dbt run --target prod
+        run: dbt build --target prod

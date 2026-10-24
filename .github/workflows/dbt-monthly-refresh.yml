@@ -1,11 +1,6 @@
 name: dbt Monthly Dev Refresh + Promote
 
 on:
-  schedule:
-    # 06:13 UTC on the 15th of every month (off the top of the hour,
-    # since GitHub Actions scheduled workflows are more likely to be
-    # delayed at :00 due to platform-wide congestion at that mark)
-    - cron: '13 6 15 * *'
   workflow_dispatch: {}
 
 concurrency:
@@ -14,7 +9,8 @@ concurrency:
 
 jobs:
   dev-refresh:
-    name: Test (landing) + Run (dev)
+    name: Build and test (dev)
+    if: vars.ENABLE_SNOWFLAKE_WORKFLOWS == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,7 +32,7 @@ jobs:
           printf '%s' "${{ secrets.DEV_SNOWFLAKE_PRIVATE_KEY }}" | tr -d '\r' > "$RUNNER_TEMP/keys/dev_key.p8"
           chmod 600 "$RUNNER_TEMP/keys/dev_key.p8"
 
-      - name: dbt test (landing models only)
+      - name: dbt build (models + tests, dev)
         env:
           DEV_SNOWFLAKE_ACCOUNT: ${{ secrets.DEV_SNOWFLAKE_ACCOUNT }}
           DEV_SNOWFLAKE_USER: ${{ secrets.DEV_SNOWFLAKE_USER }}
@@ -46,19 +42,7 @@ jobs:
           DEV_SNOWFLAKE_PRIVATE_KEY_PATH: ${{ runner.temp }}/keys/dev_key.p8
           RMIS_SNOWFLAKE_WAREHOUSE: ${{ vars.RMIS_SNOWFLAKE_WAREHOUSE }}
           DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
-        run: dbt test --select path:rmis_dbt_model/models/landing --target dev
-
-      - name: dbt run (full project, dev)
-        env:
-          DEV_SNOWFLAKE_ACCOUNT: ${{ secrets.DEV_SNOWFLAKE_ACCOUNT }}
-          DEV_SNOWFLAKE_USER: ${{ secrets.DEV_SNOWFLAKE_USER }}
-          DEV_SNOWFLAKE_ROLE: ${{ secrets.DEV_SNOWFLAKE_ROLE }}
-          DEV_SNOWFLAKE_DATABASE: ${{ secrets.DEV_SNOWFLAKE_DATABASE }}
-          DEV_SNOWFLAKE_SCHEMA: ${{ secrets.DEV_SNOWFLAKE_SCHEMA }}
-          DEV_SNOWFLAKE_PRIVATE_KEY_PATH: ${{ runner.temp }}/keys/dev_key.p8
-          RMIS_SNOWFLAKE_WAREHOUSE: ${{ vars.RMIS_SNOWFLAKE_WAREHOUSE }}
-          DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
-        run: dbt run --target dev
+        run: dbt build --target dev
 
   open_promotion_pr:
     name: Open PR to promote dev refresh to prod
@@ -104,13 +88,12 @@ jobs:
               --base main \
               --head dbt-monthly-refresh-promotion \
               --title "Promote monthly dbt dev refresh to prod - $(date -u +%Y-%m-%d)" \
-              --body "Auto-created after successful dev dbtf test + run. Approve and merge to run dbtf run --target prod.")
+              --body "Auto-created after successful dev dbt build. Approve and merge to run dbt build --target prod.")
             echo "Created PR: $PR_URL"
           else
             echo "PR already exists: $PR_URL"
           fi
 
-          # Request review from Approvers team
-          gh pr edit --repo "$REPO" "$PR_URL" --add-reviewer "example-org/approvers"
-          echo "Review requested from team: example-org/approvers"
-          echo "PR ready for approval + merge: $PR_URL"
+          # A personal repository cannot request an example organisation team.
+          # Configure branch protection separately before enabling promotion.
+          echo "PR ready for review + merge: $PR_URL"
